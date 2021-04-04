@@ -27,6 +27,9 @@ const config: HardhatUserConfig = {
     mainnet: {
       url: `https://mainnet.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
     },
+    bsc: {
+      url: "https://bsc-dataseed.binance.org/",
+    },
     polygon: {
       url: "https://rpc-mainnet.maticvigil.com/",
     },
@@ -39,6 +42,12 @@ const config: HardhatUserConfig = {
       multicallAddress: "0xeefba1e63905ef1d7acba5a8513c70307c1ce441",
       uniswapClones: {
         uniswap: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
+      },
+    },
+    bsc: {
+      multicallAddress: "0x1Ee38d535d541c55C9dae27B12edf090C608E6Fb",
+      uniswapClones: {
+        pancakeswap: "0xBCfCcbde45cE874adCB698cC183deBcF17952812",
       },
     },
     polygon: {

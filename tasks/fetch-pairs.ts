@@ -1,8 +1,9 @@
+import { ethers } from "ethers";
 import * as fs from "fs/promises";
 import { task } from "hardhat/config";
 
 import UniswapFactoryAbi from "../abis/UniswapFactory.json";
-import { executeMulticall } from "../utils";
+import Multicall from "../utils/multicall";
 
 task("fetch-pairs", "Fetch token pairs from Uniswap factories").setAction(
   async (_args, hre) => {
@@ -13,21 +14,27 @@ task("fetch-pairs", "Fetch token pairs from Uniswap factories").setAction(
       const multicallAddress = config[network].multicallAddress;
       const uniswapClones = config[network].uniswapClones;
 
+      const multicall = new Multicall(hre.ethers.provider, multicallAddress);
+
+      const uniswapFactoryInterface = new ethers.utils.Interface(
+        UniswapFactoryAbi
+      );
+
       for (const [name, factoryAddress] of Object.entries(uniswapClones)) {
         console.log(`Retrieving token pairs of ${name}`);
 
-        let numPairs = await executeMulticall(hre.ethers.provider, {
-          multicallAddress,
-          contract: factoryAddress,
-          abi: UniswapFactoryAbi,
-          calls: [
+        const [allPairsLengthData] = await multicall.aggregate(
+          uniswapFactoryInterface,
+          [
             {
-              reference: "allPairsLength",
-              methodName: "allPairsLength",
-              methodParameters: [],
+              target: factoryAddress,
+              method: "allPairsLength",
+              args: [],
             },
-          ],
-        }).then((results) => Number(results[0].value.hex));
+          ]
+        );
+
+        let numPairs = Number(allPairsLengthData[0]);
 
         console.log(`Detected ${numPairs} token pairs`);
 
@@ -35,22 +42,21 @@ task("fetch-pairs", "Fetch token pairs from Uniswap factories").setAction(
 
         // On-chain read might timeout if we try to read too much data
         // so we need to cap the number of pairs we read at once
-        const MAX_PAIRS_READ = 5000;
+        const MAX_PAIRS_READ = 1000;
         while (numPairs > 0) {
-          const pairs: string[] = await executeMulticall(hre.ethers.provider, {
-            multicallAddress,
-            contract: factoryAddress,
-            abi: UniswapFactoryAbi,
-            calls: [...Array(Math.min(numPairs, MAX_PAIRS_READ)).keys()].map(
-              (index) => ({
-                reference: `allPairs[${index}]`,
-                methodName: "allPairs",
-                methodParameters: [index],
-              })
-            ),
-          }).then((results) => results.map((result) => result.value));
+          const allPairsData = await multicall.aggregate(
+            uniswapFactoryInterface,
+            [...Array(Math.min(numPairs, MAX_PAIRS_READ)).keys()].map((i) => ({
+              target: factoryAddress,
+              method: "allPairs",
+              args: [i],
+            }))
+          );
 
-          allPairs = [...allPairs, ...pairs];
+          allPairs = [
+            ...allPairs,
+            ...allPairsData.map((pairData) => pairData[0]),
+          ];
           numPairs -= MAX_PAIRS_READ;
         }
 

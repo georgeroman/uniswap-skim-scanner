@@ -81,7 +81,8 @@ task("scan-pairs", "Scan Uniswap pairs for skim opportunities").setAction(
 
           console.log(
             balanceOf0.sub(reserve0).toString(),
-            balanceOf1.sub(reserve1).toString()
+            balanceOf1.sub(reserve1).toString(),
+            pairAddress
           );
         }
       }
